@@ -1,4 +1,4 @@
-package com.greenback.multipleconsumers;
+package com.fisher.multipleconsumers;
 
 import java.util.Arrays;
 import java.util.List;

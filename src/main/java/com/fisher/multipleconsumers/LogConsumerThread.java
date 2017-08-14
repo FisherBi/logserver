@@ -1,42 +1,57 @@
-package com.greenback.consumer;
+package com.fisher.multipleconsumers;
 
-import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
 
 /**
- * Created by fisbii on 17-7-25.
+ * Created by fisbii on 17-7-31.
  */
-public class LogConsumer {
+public class LogConsumerThread implements Runnable {
     private static final SimpleDateFormat sdf = new SimpleDateFormat("YYYY-MM-dd");
     private static final String ihaLogPath = "/data/home/fisbii/ihalog";
     private static final List<String> topicList = Arrays.asList("iha_info","iha_error");
+    private final KafkaConsumer<String, String> consumer;
+    private final String topic;
 
-    public static void main(String[] args) {
+    public LogConsumerThread(String brokers, String groupId, String topic){
+        Properties prop = createConsumerConfig(brokers, groupId);
+        this.consumer = new KafkaConsumer<>(prop);
+        this.topic = topic;
+        this.consumer.subscribe(Arrays.asList(this.topic));
+    }
 
-        Properties consumerConfig = new Properties();
-        consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "my-group");
-        consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
-        consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
-        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerConfig);
-        TestConsumerRebalanceListener rebalanceListener = new TestConsumerRebalanceListener();
-        consumer.subscribe(topicList, rebalanceListener);
+    private static Properties createConsumerConfig(String brokers, String groupId) {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", brokers);
+        props.put("group.id", groupId);
+        props.put("enable.auto.commit", "true");
+        props.put("auto.commit.interval.ms", "1000");
+        props.put("session.timeout.ms", "30000");
+        props.put("auto.offset.reset", "earliest");
+        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        return props;
+    }
 
+    @Override
+    public void run() {
         while (true) {
             ConsumerRecords<String, String> records = consumer.poll(1000);
             printLogToFile(records);
 
             consumer.commitSync();
         }
-
     }
 
     private static void printLogToFile(ConsumerRecords<String, String> records) {
@@ -70,17 +85,4 @@ public class LogConsumer {
             }
         }
     }
-
-    private static class  TestConsumerRebalanceListener implements ConsumerRebalanceListener {
-        @Override
-        public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-            System.out.println("Called onPartitionsRevoked with partitions:" + partitions);
-        }
-
-        @Override
-        public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-            System.out.println("Called onPartitionsAssigned with partitions:" + partitions);
-        }
-    }
-
 }
