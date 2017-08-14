@@ -1,4 +1,4 @@
-package com.greenback.consumer;
+package com.fisher.consumer;
 
 import com.google.common.collect.ImmutableMap;
 import kafka.consumer.Consumer;
